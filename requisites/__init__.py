@@ -1,6 +1,6 @@
 import inspect
 from types import MappingProxyType
-from typing import Any, Dict, Optional, Text, Tuple
+from typing import Any, Callable, Dict, Optional, Text, Tuple
 
 from .version import VERSION
 
@@ -11,65 +11,94 @@ KwargsType = Dict[Text, Any]
 
 
 def collect_params(
-    fun: MappingProxyType[Text, "inspect.Parameter"],
-    *args,
-    kwargs: Optional[Dict[Text, Any]] = None,
+    fun: Callable,
+    *any_args,
+    args: Optional[ArgsType] = None,
+    kwargs: Optional[KwargsType] = None,
+    requisites_raise_too_many_positional_args: bool = False,
     **extra_kwargs,
 ) -> Tuple[ArgsType, KwargsType]:
+    """Collects the required positional and keyword arguments of a function.
+
+    Parameters
+    ----------
+    fun : Callable
+        A function.
+    any_args : Any
+        Any positional arguments.
+    args : Optional[ArgsType], optional
+        Positional arguments, by default None.
+    kwargs : Optional[KwargsType], optional
+        Keyword arguments, by default None.
+    requisites_raise_too_many_positional_args : bool, optional
+        Whether to raise an error if there are too many positional arguments, by default False.
+    extra_kwargs : Any
+        Extra keyword arguments.
+    Raises
+    ------
+    TypeError
+        If a required positional or keyword argument is missing.
+    """
+
     signature_parameters: MappingProxyType[
         Text, "inspect.Parameter"
     ] = inspect.signature(fun).parameters
 
+    var_positionals = ([i for i in args] if args else []) + [i for i in any_args]
+    var_keywords = {k: v for k, v in kwargs.items()} if kwargs else {}
+    var_keywords.update(
+        {k: v for k, v in extra_kwargs.items() if k not in var_keywords}
+    )
     collected_args = []
     collected_kwargs = {}
-    args_idx = 0
-    visited_names = set()
+    has_var_positional = False
+    has_var_keyword = False
 
     for param_name, param_meta in signature_parameters.items():
-        if param_meta.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
-            if kwargs and param_name in kwargs and param_name not in visited_names:
-                collected_args.append(kwargs[param_name])
-            elif param_name in extra_kwargs and param_name not in visited_names:
-                collected_args.append(extra_kwargs[param_name])
-            elif args_idx < len(args):
-                collected_args.append(args[args_idx])
-                args_idx += 1
+        if param_meta.kind == inspect.Parameter.POSITIONAL_ONLY:
+            if not var_positionals:
+                raise TypeError(f"Missing required positional argument: '{param_name}'")
+            collected_args.append(var_positionals.pop(0))
+
+        elif param_meta.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
+            if param_name in var_keywords:
+                collected_kwargs[param_name] = var_keywords.pop(param_name)
+            elif var_positionals:
+                collected_args.append(var_positionals.pop(0))
             elif param_meta.default != inspect.Parameter.empty:
                 collected_kwargs[param_name] = param_meta.default
             else:
                 raise TypeError(f"Missing required positional argument: '{param_name}'")
 
         elif param_meta.kind == inspect.Parameter.VAR_POSITIONAL:
-            collected_args.extend(args[args_idx:])
-            args_idx = len(args)
+            has_var_positional = True
 
         elif param_meta.kind == inspect.Parameter.KEYWORD_ONLY:
-            if kwargs and param_name in kwargs and param_name not in visited_names:
-                collected_kwargs[param_name] = kwargs[param_name]
+            if param_name in var_keywords:
+                collected_kwargs[param_name] = var_keywords.pop(param_name)
             elif param_meta.default != inspect.Parameter.empty:
                 collected_kwargs[param_name] = param_meta.default
-            elif param_name in extra_kwargs and param_name not in visited_names:
-                collected_kwargs[param_name] = extra_kwargs[param_name]
             else:
                 raise TypeError(f"Missing required keyword argument: '{param_name}'")
 
         elif param_meta.kind == inspect.Parameter.VAR_KEYWORD:
-            if kwargs:
-                for k, v in kwargs.items():
-                    if k not in collected_kwargs and k not in visited_names:
-                        collected_kwargs[k] = v
-            if extra_kwargs:
-                for k, v in extra_kwargs.items():
-                    if k not in collected_kwargs and k not in visited_names:
-                        collected_kwargs[k] = v
-
-        elif param_meta.kind == inspect.Parameter.POSITIONAL_ONLY:
-            collected_args.append(args[args_idx])
-            args_idx += 1
+            has_var_keyword = True
 
         else:
             raise TypeError(f"Unsupported parameter type: '{param_meta.kind}'")
 
-        visited_names.add(param_name)
+    if var_positionals:  # Still have positional arguments
+        if has_var_positional:  # Has *args
+            collected_args.extend(var_positionals)
+        elif requisites_raise_too_many_positional_args:  # Without *args and raise
+            raise TypeError(f"Too many positional arguments: {var_positionals}")
+        else:
+            pass  # Without *args and not raise
+
+    if var_keywords:  # Still have keyword arguments
+        if has_var_keyword:  # Has **kwargs
+            collected_kwargs.update(var_keywords)
+        else:
+            pass  # Without **kwargs
 
     return (tuple(collected_args), collected_kwargs)
