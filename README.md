@@ -29,25 +29,27 @@ This library provides a utility to collect function parameters dynamically, eith
 ```python
 from requisites import collect_params
 
+
 def sample_function(argument):
     return argument
 
+
 # Example 1: Collecting positional arguments
 args, kwargs = collect_params(sample_function, "hello")
-# args will be ("hello",)
-# kwargs will be {}
+assert args == ("hello",)
+assert kwargs == {}
 assert sample_function(*args, **kwargs) == "hello"
 
 # Example 2: Collecting keyword arguments
 args, kwargs = collect_params(sample_function, argument="hello")
-# args will be ()
-# kwargs will be {"argument": "hello"}
+assert args == ()
+assert kwargs == {"argument": "hello"}
 assert sample_function(*args, **kwargs) == "hello"
 
 # Example 3: Combining positional and keyword arguments
 args, kwargs = collect_params(sample_function, "hello", argument="world")
-# args will be ()
-# kwargs will be {"argument": "world"}
+assert args == ()
+assert kwargs == {"argument": "world"}
 assert sample_function(*args, **kwargs) == "world"
 ```
 
@@ -56,18 +58,22 @@ assert sample_function(*args, **kwargs) == "world"
 ```python
 from requisites import collect_params
 
+
 def complex_function(a, b, *args, c, d=1, **kwargs):
     return "OK"
 
+
 # Example 1: Handling required parameters
 args, kwargs = collect_params(complex_function, "hello", "world", c="see")
-# args will be ("hello", "world")
-# kwargs will be {"c": "see", "d": 1}
+assert args == ("hello", "world")
+assert kwargs == {"c": "see", "d": 1}
 assert complex_function(*args, **kwargs) == "OK"
 
 # Example 2: Handling extra positional and keyword arguments
-args, kwargs = collect_params(complex_function, "hello", "world", "!", c="see", e="extra", f="fun")
-# args will be ("hello", "world", "!")
-# kwargs will be {"c": "see", "d": 1, "e": "extra", "f": "fun"}
+args, kwargs = collect_params(
+    complex_function, "hello", "world", "!", c="see", e="extra", f="fun"
+)
+assert args == ("hello", "world", "!")
+assert kwargs == {"c": "see", "d": 1, "e": "extra", "f": "fun"}
 assert complex_function(*args, **kwargs) == "OK"
 ```
