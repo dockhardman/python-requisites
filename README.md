@@ -22,12 +22,52 @@ pip install python-requisites
 
 ## Usage
 
-To utilize Python Requisites in your project, simply import the module and pass your Python object for analysis.
+This library provides a utility to collect function parameters dynamically, either as positional or keyword arguments. Below are examples demonstrating how to use this functionality:
+
+### Collecting Positional or Keyword Arguments
 
 ```python
-from requisites import analyze_dependencies
+from requisites import collect_params
 
-# Analyze dependencies of a function
-dependencies = analyze_dependencies(my_function)
-print(dependencies)
+def sample_function(argument):
+    return argument
+
+# Example 1: Collecting positional arguments
+args, kwargs = collect_params(sample_function, "hello")
+# args will be ("hello",)
+# kwargs will be {}
+assert sample_function(*args, **kwargs) == "hello"
+
+# Example 2: Collecting keyword arguments
+args, kwargs = collect_params(sample_function, argument="hello")
+# args will be ()
+# kwargs will be {"argument": "hello"}
+assert sample_function(*args, **kwargs) == "hello"
+
+# Example 3: Combining positional and keyword arguments
+args, kwargs = collect_params(sample_function, "hello", argument="world")
+# args will be ()
+# kwargs will be {"argument": "world"}
+assert sample_function(*args, **kwargs) == "world"
+```
+
+### Collecting Parameters with Variable Arguments
+
+```python
+from requisites import collect_params
+
+def complex_function(a, b, *args, c, d=1, **kwargs):
+    return "OK"
+
+# Example 1: Handling required parameters
+args, kwargs = collect_params(complex_function, "hello", "world", c="see")
+# args will be ("hello", "world")
+# kwargs will be {"c": "see", "d": 1}
+assert complex_function(*args, **kwargs) == "OK"
+
+# Example 2: Handling extra positional and keyword arguments
+args, kwargs = collect_params(complex_function, "hello", "world", "!", c="see", e="extra", f="fun")
+# args will be ("hello", "world", "!")
+# kwargs will be {"c": "see", "d": 1, "e": "extra", "f": "fun"}
+assert complex_function(*args, **kwargs) == "OK"
 ```
