@@ -9,3 +9,6 @@ upgrade-deps:
 format-all:
 	isort . --skip setup.py
 	black --exclude setup.py .
+
+pytest:
+	pytest -vv --cov=requisites --cov-report=term-missing --cov-report=xml tests/
