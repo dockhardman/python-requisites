@@ -7,6 +7,10 @@ def func_with_pos_or_key(var: Text) -> Text:
     return var
 
 
+def func_with_var(a, b, *args, c, d=1, **kwargs) -> Text:
+    return "OK"
+
+
 def test_collect_params_with_pos_or_key():
     # Test positional arguments
     req_args, req_kwargs = requisites.collect_params(
@@ -33,3 +37,21 @@ def test_collect_params_with_pos_or_key():
     assert req_args == ()
     assert req_kwargs == {"var": "hello"}  # "var2" is not collected
     assert func_with_pos_or_key(*req_args, **req_kwargs) == "hello"
+
+
+def test_collect_params_with_var():
+    # Test at least required parameters
+    req_args, req_kwargs = requisites.collect_params(
+        func_with_var, args=("hello",), *("world",), c="c"
+    )
+    assert req_args == ("hello", "world")
+    assert req_kwargs == {"c": "c", "d": 1}
+    assert func_with_var(*req_args, **req_kwargs) == "OK"
+
+    # Test with extra positional and keyword arguments
+    req_args, req_kwargs = requisites.collect_params(
+        func_with_var, args=("hello",), *("world", "!"), c="c", e="e", f="f"
+    )
+    assert req_args == ("hello", "world", "!")
+    assert req_kwargs == {"c": "c", "d": 1, "e": "e", "f": "f"}
+    assert func_with_var(*req_args, **req_kwargs) == "OK"
